@@ -110,6 +110,9 @@ object Preferences {
     const val POPINN_EMAIL = "popinn_email"
     const val POPINN_PASSWORD = "popinn_password"
     const val POPINN_TEST_CONNECTION = "popinn_test_connection"
+    private const val MUSIC_VIDEO_CATALOGUE_SORT = "music_video_catalogue_sort"
+    const val MUSIC_VIDEO_SORT_ALPHABETICAL = "alphabetical"
+    const val MUSIC_VIDEO_SORT_DATE_ADDED = "date_added"
 
 
     @JvmStatic
@@ -150,6 +153,18 @@ object Preferences {
     @JvmStatic
     fun setPopinnPassword(password: String?) {
         App.getInstance().encryptedPreferences.edit().putString(POPINN_PASSWORD, password).apply()
+    }
+
+    @JvmStatic
+    fun getMusicVideoCatalogueSort(): String {
+        return App.getInstance().preferences
+            .getString(MUSIC_VIDEO_CATALOGUE_SORT, MUSIC_VIDEO_SORT_ALPHABETICAL)
+            ?: MUSIC_VIDEO_SORT_ALPHABETICAL
+    }
+
+    @JvmStatic
+    fun setMusicVideoCatalogueSort(sort: String) {
+        App.getInstance().preferences.edit().putString(MUSIC_VIDEO_CATALOGUE_SORT, sort).apply()
     }
 
     @JvmStatic

@@ -113,7 +113,15 @@
         <action
             android:id="@+id/action_libraryFragment_to_indexFragment"
             app:destination="@id/indexFragment" />
+        <action
+            android:id="@+id/action_libraryFragment_to_musicVideoCatalogueFragment"
+            app:destination="@id/musicVideoCatalogueFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/musicVideoCatalogueFragment"
+        android:name="com.cappielloantonio.tempo.ui.fragment.MusicVideoCatalogueFragment"
+        android:label="MusicVideoCatalogueFragment"
+        tools:layout="@layout/fragment_music_video_catalogue" />
     <fragment
         android:id="@+id/downloadFragment"
         android:name="com.cappielloantonio.tempo.ui.fragment.DownloadFragment"

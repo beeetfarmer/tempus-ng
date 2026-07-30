@@ -4,10 +4,11 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.PopupMenu;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.OptIn;
 import androidx.annotation.Nullable;
+import androidx.annotation.OptIn;
 import androidx.core.view.ViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.LiveData;
@@ -18,25 +19,34 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.cappielloantonio.tempo.R;
-import com.cappielloantonio.tempo.databinding.FragmentMusicVideoListPageBinding;
+import com.cappielloantonio.tempo.databinding.FragmentMusicVideoCatalogueBinding;
 import com.cappielloantonio.tempo.interfaces.ClickCallback;
 import com.cappielloantonio.tempo.popinn.PopinnVideoResult;
 import com.cappielloantonio.tempo.ui.activity.MainActivity;
 import com.cappielloantonio.tempo.ui.activity.MusicVideoPlayerActivity;
 import com.cappielloantonio.tempo.ui.adapter.MusicVideoHorizontalAdapter;
 import com.cappielloantonio.tempo.util.Constants;
-import com.cappielloantonio.tempo.viewmodel.MusicVideoListPageViewModel;
+import com.cappielloantonio.tempo.util.Preferences;
+import com.cappielloantonio.tempo.viewmodel.MusicVideoCatalogueViewModel;
 
-/** Every music video a Popinn artist has, newest first, paged as you scroll. */
+/**
+ * The whole music video library.
+ *
+ * Built for a catalogue far larger than fits in memory: rows arrive a page at a
+ * time as you scroll, never more than one request is in flight, and the list
+ * grows by range insert rather than being rebuilt. Sorting is done by the
+ * server, so changing it restarts paging instead of reordering anything held
+ * locally — a client-side sort would only ever order the part already fetched.
+ */
 @OptIn(markerClass = UnstableApi.class)
-public class MusicVideoListPageFragment extends Fragment implements ClickCallback {
+public class MusicVideoCatalogueFragment extends Fragment implements ClickCallback {
     /** Start the next page this many rows before the end. */
-    private static final int PREFETCH_DISTANCE = 10;
+    private static final int PREFETCH_DISTANCE = 15;
 
-    private FragmentMusicVideoListPageBinding bind;
+    private FragmentMusicVideoCatalogueBinding bind;
 
     private MainActivity activity;
-    private MusicVideoListPageViewModel musicVideoListPageViewModel;
+    private MusicVideoCatalogueViewModel musicVideoCatalogueViewModel;
     private MusicVideoHorizontalAdapter musicVideoAdapter;
 
     private boolean isLoading;
@@ -45,13 +55,12 @@ public class MusicVideoListPageFragment extends Fragment implements ClickCallbac
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         activity = (MainActivity) getActivity();
 
-        bind = FragmentMusicVideoListPageBinding.inflate(inflater, container, false);
+        bind = FragmentMusicVideoCatalogueBinding.inflate(inflater, container, false);
         View view = bind.getRoot();
-        musicVideoListPageViewModel = new ViewModelProvider(requireActivity()).get(MusicVideoListPageViewModel.class);
+        musicVideoCatalogueViewModel = new ViewModelProvider(requireActivity()).get(MusicVideoCatalogueViewModel.class);
 
-        init();
         initAppBar();
-        initMusicVideoListView();
+        initMusicVideoCatalogueView();
 
         return view;
     }
@@ -60,21 +69,6 @@ public class MusicVideoListPageFragment extends Fragment implements ClickCallbac
     public void onDestroyView() {
         super.onDestroyView();
         bind = null;
-    }
-
-    private void init() {
-        String artistId = requireArguments().getString(Constants.MUSIC_VIDEO_ARTIST_ID);
-        String artistName = requireArguments().getString(Constants.MUSIC_VIDEO_ARTIST_NAME);
-
-        // A different artist than last time means the paging state must not carry over.
-        if (artistId != null && !artistId.equals(musicVideoListPageViewModel.artistId)) {
-            musicVideoListPageViewModel.total = -1;
-        }
-
-        musicVideoListPageViewModel.artistId = artistId;
-        musicVideoListPageViewModel.artistName = artistName;
-
-        bind.pageTitleLabel.setText(artistName != null ? artistName : getString(R.string.music_video_list_page_title));
     }
 
     private void initAppBar() {
@@ -89,45 +83,81 @@ public class MusicVideoListPageFragment extends Fragment implements ClickCallbac
 
         bind.appBarLayout.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
             if ((bind.musicVideoInfoSector.getHeight() + verticalOffset) < (2 * ViewCompat.getMinimumHeight(bind.toolbar))) {
-                bind.toolbar.setTitle(R.string.music_video_list_page_title);
+                bind.toolbar.setTitle(R.string.music_video_catalogue_title);
             } else {
                 bind.toolbar.setTitle(R.string.empty_string);
             }
         });
     }
 
-    private void initMusicVideoListView() {
+    private void initMusicVideoCatalogueView() {
         LinearLayoutManager layoutManager = new LinearLayoutManager(requireContext());
-        bind.musicVideoListRecyclerView.setLayoutManager(layoutManager);
+        bind.musicVideoCatalogueRecyclerView.setLayoutManager(layoutManager);
+        bind.musicVideoCatalogueRecyclerView.setHasFixedSize(true);
 
         musicVideoAdapter = new MusicVideoHorizontalAdapter(this);
-        bind.musicVideoListRecyclerView.setAdapter(musicVideoAdapter);
+        bind.musicVideoCatalogueRecyclerView.setAdapter(musicVideoAdapter);
 
-        bind.musicVideoListRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        bind.musicVideoCatalogueRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
                 if (dy <= 0 || isLoading) return;
 
-                int lastVisible = layoutManager.findLastVisibleItemPosition();
-                if (lastVisible >= musicVideoAdapter.getLoadedCount() - PREFETCH_DISTANCE) {
+                if (layoutManager.findLastVisibleItemPosition() >= musicVideoAdapter.getLoadedCount() - PREFETCH_DISTANCE) {
                     loadNextPage();
                 }
             }
         });
 
+        bind.musicVideoSortImageView.setOnClickListener(view -> showSortMenu(view));
+
+        // A fresh adapter starts empty, so paging always restarts from the top
+        // rather than trusting a total left over from a previous visit.
+        musicVideoCatalogueViewModel.total = -1;
+        loadNextPage();
+    }
+
+    private void showSortMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(requireContext(), anchor);
+        popup.getMenuInflater().inflate(R.menu.sort_music_video_popup_menu, popup.getMenu());
+
+        popup.setOnMenuItemClickListener(menuItem -> {
+            String sort;
+            if (menuItem.getItemId() == R.id.menu_music_video_sort_alphabetical) {
+                sort = Preferences.MUSIC_VIDEO_SORT_ALPHABETICAL;
+            } else if (menuItem.getItemId() == R.id.menu_music_video_sort_date_added) {
+                sort = Preferences.MUSIC_VIDEO_SORT_DATE_ADDED;
+            } else {
+                return false;
+            }
+
+            if (musicVideoCatalogueViewModel.setSort(sort)) restartPaging();
+            return true;
+        });
+
+        popup.show();
+    }
+
+    /** Drops everything loaded and starts again under the new sort. */
+    private void restartPaging() {
+        if (bind == null) return;
+
+        isLoading = false;
+        musicVideoAdapter.clear();
+        bind.musicVideoCatalogueRecyclerView.scrollToPosition(0);
         loadNextPage();
     }
 
     private void loadNextPage() {
         int loaded = musicVideoAdapter.getLoadedCount();
-        if (isLoading || !musicVideoListPageViewModel.hasMore(loaded)) return;
+        if (isLoading || !musicVideoCatalogueViewModel.hasMore(loaded)) return;
 
         isLoading = true;
-        if (bind != null && loaded == 0) bind.musicVideoListProgressBar.setVisibility(View.VISIBLE);
+        if (bind != null && loaded == 0) bind.musicVideoCatalogueProgressBar.setVisibility(View.VISIBLE);
 
         // Each page is a one-shot LiveData. The observer is removed as soon as it
         // fires, so a long scroll does not leave one behind per page.
-        LiveData<PopinnVideoResult> source = musicVideoListPageViewModel.loadPage(loaded);
+        LiveData<PopinnVideoResult> source = musicVideoCatalogueViewModel.loadPage(loaded);
         source.observe(getViewLifecycleOwner(), new Observer<PopinnVideoResult>() {
             @Override
             public void onChanged(@Nullable PopinnVideoResult result) {
@@ -141,16 +171,16 @@ public class MusicVideoListPageFragment extends Fragment implements ClickCallbac
         isLoading = false;
         if (bind == null) return;
 
-        bind.musicVideoListProgressBar.setVisibility(View.GONE);
+        bind.musicVideoCatalogueProgressBar.setVisibility(View.GONE);
         if (result == null) return;
 
-        musicVideoListPageViewModel.total = result.getTotal();
+        musicVideoCatalogueViewModel.total = result.getTotal();
         musicVideoAdapter.addItems(result.getVideos());
         bind.pageSubtitleLabel.setText(getString(R.string.generic_list_page_count, result.getTotal()));
 
         // An empty page while more was expected would otherwise loop forever.
         if (result.getVideos().isEmpty()) {
-            musicVideoListPageViewModel.total = musicVideoAdapter.getLoadedCount();
+            musicVideoCatalogueViewModel.total = musicVideoAdapter.getLoadedCount();
         }
     }
 

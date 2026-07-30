@@ -8,6 +8,8 @@ import androidx.lifecycle.LifecycleOwner;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.cappielloantonio.tempo.popinn.PopinnRepository;
+import com.cappielloantonio.tempo.popinn.PopinnVideo;
 import com.cappielloantonio.tempo.repository.AlbumRepository;
 import com.cappielloantonio.tempo.repository.ArtistRepository;
 import com.cappielloantonio.tempo.repository.DirectoryRepository;
@@ -25,11 +27,15 @@ import java.util.List;
 public class LibraryViewModel extends AndroidViewModel {
     private static final String TAG = "LibraryViewModel";
 
+    /** Videos in the library carousel, before "See all" takes over. */
+    private static final int MUSIC_VIDEO_SAMPLE_SIZE = 10;
+
     private final DirectoryRepository directoryRepository;
     private final AlbumRepository albumRepository;
     private final ArtistRepository artistRepository;
     private final GenreRepository genreRepository;
     private final PlaylistRepository playlistRepository;
+    private final PopinnRepository popinnRepository;
 
     private final MutableLiveData<List<MusicFolder>> musicFolders = new MutableLiveData<>(null);
     private final MutableLiveData<Indexes> indexes = new MutableLiveData<>(null);
@@ -37,6 +43,7 @@ public class LibraryViewModel extends AndroidViewModel {
     private final MutableLiveData<List<AlbumID3>> sampleAlbum = new MutableLiveData<>(null);
     private final MutableLiveData<List<ArtistID3>> sampleArtist = new MutableLiveData<>(null);
     private final MutableLiveData<List<Genre>> sampleGenres = new MutableLiveData<>(null);
+    private final MutableLiveData<List<PopinnVideo>> sampleMusicVideos = new MutableLiveData<>(null);
 
     public LibraryViewModel(@NonNull Application application) {
         super(application);
@@ -46,6 +53,7 @@ public class LibraryViewModel extends AndroidViewModel {
         artistRepository = new ArtistRepository();
         genreRepository = new GenreRepository();
         playlistRepository = new PlaylistRepository();
+        popinnRepository = new PopinnRepository();
     }
 
     public LiveData<List<MusicFolder>> getMusicFolders(LifecycleOwner owner) {
@@ -94,6 +102,25 @@ public class LibraryViewModel extends AndroidViewModel {
         }
 
         return playlistSample;
+    }
+
+    /**
+     * A random handful of music videos from the Popinn server, or an empty list
+     * when none is configured or it cannot be reached — the section hides itself
+     * in that case.
+     */
+    public LiveData<List<PopinnVideo>> getMusicVideoSample(LifecycleOwner owner) {
+        if (sampleMusicVideos.getValue() == null) {
+            popinnRepository.getRandomVideos(MUSIC_VIDEO_SAMPLE_SIZE)
+                    .observe(owner, result -> sampleMusicVideos.postValue(result.getVideos()));
+        }
+
+        return sampleMusicVideos;
+    }
+
+    public void refreshMusicVideoSample(LifecycleOwner owner) {
+        popinnRepository.getRandomVideos(MUSIC_VIDEO_SAMPLE_SIZE)
+                .observe(owner, result -> sampleMusicVideos.postValue(result.getVideos()));
     }
 
     public void refreshAlbumSample(LifecycleOwner owner) {

@@ -6,7 +6,7 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 
-import com.cappielloantonio.tempo.popinn.PopinnArtistVideos;
+import com.cappielloantonio.tempo.popinn.PopinnVideoResult;
 import com.cappielloantonio.tempo.popinn.PopinnRepository;
 
 public class MusicVideoListPageViewModel extends AndroidViewModel {
@@ -25,7 +25,7 @@ public class MusicVideoListPageViewModel extends AndroidViewModel {
         popinnRepository = new PopinnRepository();
     }
 
-    public LiveData<PopinnArtistVideos> loadPage(int skip) {
+    public LiveData<PopinnVideoResult> loadPage(int skip) {
         return popinnRepository.getArtistVideoPage(artistId, skip, PAGE_SIZE);
     }
 

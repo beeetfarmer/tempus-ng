@@ -29,7 +29,9 @@ import com.cappielloantonio.tempo.ui.activity.MainActivity;
 import com.cappielloantonio.tempo.ui.adapter.AlbumAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ArtistAdapter;
 import com.cappielloantonio.tempo.ui.adapter.GenreAdapter;
+import com.cappielloantonio.tempo.ui.activity.MusicVideoPlayerActivity;
 import com.cappielloantonio.tempo.ui.adapter.MusicFolderAdapter;
+import com.cappielloantonio.tempo.ui.adapter.MusicVideoCarouselAdapter;
 import com.cappielloantonio.tempo.ui.adapter.PlaylistHorizontalAdapter;
 import com.cappielloantonio.tempo.ui.dialog.PlaylistEditorDialog;
 import com.cappielloantonio.tempo.util.Constants;
@@ -54,6 +56,7 @@ public class LibraryFragment extends Fragment implements ClickCallback {
     private ArtistAdapter artistAdapter;
     private GenreAdapter genreAdapter;
     private PlaylistHorizontalAdapter playlistHorizontalAdapter;
+    private MusicVideoCarouselAdapter musicVideoCarouselAdapter;
 
     private MaterialToolbar materialToolbar;
     private ListenableFuture<MediaBrowser> mediaBrowserListenableFuture;
@@ -80,6 +83,7 @@ public class LibraryFragment extends Fragment implements ClickCallback {
         initMusicFolderView();
         initAlbumView();
         initArtistView();
+        initMusicVideoView();
         initGenreView();
         initPlaylistView();
     }
@@ -111,6 +115,13 @@ public class LibraryFragment extends Fragment implements ClickCallback {
             Bundle bundle = new Bundle();
             bundle.putString(Constants.PLAYLIST_ALL, Constants.PLAYLIST_ALL);
             activity.navController.navigate(R.id.action_libraryFragment_to_playlistCatalogueFragment, bundle);
+        });
+
+        bind.musicVideoCatalogueTextViewClickable.setOnClickListener(v -> activity.navController.navigate(R.id.action_libraryFragment_to_musicVideoCatalogueFragment));
+
+        bind.musicVideoCatalogueSampleTextViewRefreshable.setOnLongClickListener(view -> {
+            libraryViewModel.refreshMusicVideoSample(getViewLifecycleOwner());
+            return true;
         });
 
         bind.albumCatalogueSampleTextViewRefreshable.setOnLongClickListener(view -> {
@@ -201,6 +212,24 @@ public class LibraryFragment extends Fragment implements ClickCallback {
         artistSnapHelper.attachToRecyclerView(bind.artistRecyclerView);
     }
 
+    private void initMusicVideoView() {
+        bind.musicVideoRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+        bind.musicVideoRecyclerView.setHasFixedSize(true);
+
+        musicVideoCarouselAdapter = new MusicVideoCarouselAdapter(this);
+        bind.musicVideoRecyclerView.setAdapter(musicVideoCarouselAdapter);
+        libraryViewModel.getMusicVideoSample(getViewLifecycleOwner()).observe(getViewLifecycleOwner(), videos -> {
+            if (bind == null) return;
+
+            // Stays hidden unless a Popinn server is configured and reachable.
+            bind.libraryMusicVideoSector.setVisibility(videos != null && !videos.isEmpty() ? View.VISIBLE : View.GONE);
+            if (videos != null) musicVideoCarouselAdapter.setItems(videos);
+        });
+
+        CustomLinearSnapHelper musicVideoSnapHelper = new CustomLinearSnapHelper();
+        musicVideoSnapHelper.attachToRecyclerView(bind.musicVideoRecyclerView);
+    }
+
     private void initGenreView() {
         bind.genreRecyclerView.setLayoutManager(new GridLayoutManager(requireContext(), 3, GridLayoutManager.HORIZONTAL, false));
         bind.genreRecyclerView.setHasFixedSize(true);
@@ -275,6 +304,11 @@ public class LibraryFragment extends Fragment implements ClickCallback {
     @Override
     public void onGenreClick(Bundle bundle) {
         Navigation.findNavController(requireView()).navigate(R.id.songListPageFragment, bundle);
+    }
+
+    @Override
+    public void onMusicVideoClick(Bundle bundle) {
+        MusicVideoPlayerActivity.start(requireContext(), bundle.getParcelable(Constants.MUSIC_VIDEO_OBJECT));
     }
 
     @Override

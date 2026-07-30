@@ -72,6 +72,13 @@ public class MusicVideoHorizontalAdapter extends RecyclerView.Adapter<MusicVideo
         notifyItemRangeInserted(insertedAt, more.size());
     }
 
+    /** Drops everything, for when the sort changes and paging restarts. */
+    public void clear() {
+        int previousCount = videos.size();
+        this.videos = Collections.emptyList();
+        notifyItemRangeRemoved(0, previousCount);
+    }
+
     public int getLoadedCount() {
         return videos.size();
     }

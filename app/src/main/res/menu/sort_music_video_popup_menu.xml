@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_music_video_sort_alphabetical"
+        android:title="@string/music_video_catalogue_sort_alphabetical" />
+    <item
+        android:id="@+id/menu_music_video_sort_date_added"
+        android:title="@string/music_video_catalogue_sort_date_added" />
+</menu>

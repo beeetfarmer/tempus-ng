@@ -23,7 +23,12 @@ object PopinnClient {
     private const val TAG = "PopinnClient"
 
     const val MAX_PAGE_SIZE = 200
+
+    // Server-side sort keys. SORT_LATEST coalesces the file's creation time with
+    // the row's, so it stays sensible for rows the scanner has not backfilled.
     const val SORT_LATEST = "file_created_at"
+    const val SORT_TITLE = "title"
+    const val SORT_ORDER_ASC = "asc"
     const val SORT_ORDER_DESC = "desc"
 
     private var retrofit: Retrofit? = null

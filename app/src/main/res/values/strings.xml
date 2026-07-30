@@ -116,6 +116,11 @@
     <string name="filter_artist">Filter artists</string>
     <string name="filter_title_expanded">Filter Genres</string>
     <string name="music_video_list_page_title">Music Videos</string>
+    <string name="library_title_music_video">Music Videos</string>
+    <string name="library_title_music_video_see_all_button">See all</string>
+    <string name="music_video_catalogue_title">Music Videos</string>
+    <string name="music_video_catalogue_sort_alphabetical">Alphabetically</string>
+    <string name="music_video_catalogue_sort_date_added">Date added</string>
     <string name="music_video_player_error">This video could not be played</string>
     <string name="music_video_seek_forward">%1$d s ⏵⏵</string>
     <string name="music_video_seek_back">⏴⏴ %1$d s</string>

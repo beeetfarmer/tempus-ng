@@ -17,9 +17,10 @@ interface PopinnApi {
         @Query("limit") limit: Int
     ): Call<List<PopinnArtist>>
 
+    /** A null artistId drops the query parameter, giving the whole library. */
     @GET("api/v1/videos/")
     fun getVideos(
-        @Query("artist_id") artistId: String,
+        @Query("artist_id") artistId: String?,
         @Query("sort_by") sortBy: String,
         @Query("sort_order") sortOrder: String,
         @Query("skip") skip: Int,

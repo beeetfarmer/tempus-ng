@@ -13,7 +13,7 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.cappielloantonio.tempo.model.Download;
 import com.cappielloantonio.tempo.interfaces.StarCallback;
-import com.cappielloantonio.tempo.popinn.PopinnArtistVideos;
+import com.cappielloantonio.tempo.popinn.PopinnVideoResult;
 import com.cappielloantonio.tempo.popinn.PopinnRepository;
 import com.cappielloantonio.tempo.repository.AlbumRepository;
 import com.cappielloantonio.tempo.repository.ArtistRepository;
@@ -62,7 +62,7 @@ public class ArtistPageViewModel extends AndroidViewModel {
      * first. Emits an empty result when no server is set up, when the artist is
      * unknown to it, or when it cannot be reached.
      */
-    public LiveData<PopinnArtistVideos> getMusicVideos() {
+    public LiveData<PopinnVideoResult> getMusicVideos() {
         return popinnRepository.getArtistVideos(artist.getName(), MUSIC_VIDEO_CAROUSEL_SIZE);
     }
 
