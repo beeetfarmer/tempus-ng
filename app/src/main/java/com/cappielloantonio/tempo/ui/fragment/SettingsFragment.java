@@ -41,6 +41,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.PreferenceScreen;
 import androidx.preference.SwitchPreference;
 
+import com.cappielloantonio.tempo.App;
 import com.cappielloantonio.tempo.BuildConfig;
 import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
@@ -59,11 +60,13 @@ import com.cappielloantonio.tempo.ui.dialog.StarredArtistSyncDialog;
 import com.cappielloantonio.tempo.ui.dialog.StreamingCacheStorageDialog;
 import com.cappielloantonio.tempo.util.DownloadUtil;
 import com.cappielloantonio.tempo.util.Preferences;
+import com.cappielloantonio.tempo.util.SettingsBackupUtil;
 import com.cappielloantonio.tempo.util.UIUtil;
 import com.cappielloantonio.tempo.util.ExternalAudioReader;
 import com.cappielloantonio.tempo.viewmodel.SettingViewModel;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.Locale;
 import java.util.Map;
@@ -86,6 +89,8 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Prefer
 
     private ActivityResultLauncher<Intent> equalizerResultLauncher;
     private ActivityResultLauncher<Intent> directoryPickerLauncher;
+    private ActivityResultLauncher<String> settingsBackupLauncher;
+    private ActivityResultLauncher<String[]> settingsRestoreLauncher;
 
     private MediaService.LocalBinder mediaServiceBinder;
     private boolean isServiceBound = false;
@@ -100,6 +105,30 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Prefer
         equalizerResultLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {}
+        );
+
+        settingsBackupLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                uri -> {
+                    if (uri == null) return;
+
+                    int exported = SettingsBackupUtil.export(requireContext(), uri);
+                    Toast.makeText(
+                            requireContext(),
+                            exported >= 0
+                                    ? getString(R.string.settings_backup_success, exported)
+                                    : getString(R.string.settings_backup_failure),
+                            Toast.LENGTH_LONG
+                    ).show();
+                }
+        );
+
+        settingsRestoreLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                uri -> {
+                    if (uri == null) return;
+                    confirmRestore(uri);
+                }
         );
 
         if (!BuildConfig.FLAVOR.equals("tempus")) {
@@ -311,6 +340,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Prefer
         actionTranslationSettings();
         actionLastFmSettings();
         actionPopinnSettings();
+        actionSettingsBackupRestore();
         actionConfigureDock();
         actionConfigureMetadata();
 
@@ -821,6 +851,53 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Prefer
                 return false;
             });
         }
+    }
+
+    private void actionSettingsBackupRestore() {
+        Preference backupPref = findPreference("settings_backup");
+        if (backupPref != null) {
+            backupPref.setOnPreferenceClickListener(preference -> {
+                settingsBackupLauncher.launch(SettingsBackupUtil.suggestedFileName());
+                return true;
+            });
+        }
+
+        Preference restorePref = findPreference("settings_restore");
+        if (restorePref != null) {
+            restorePref.setOnPreferenceClickListener(preference -> {
+                // Some file providers label JSON as plain text or octet-stream,
+                // so the filter stays loose rather than hiding valid backups.
+                settingsRestoreLauncher.launch(new String[]{"application/json", "text/plain", "application/octet-stream"});
+                return true;
+            });
+        }
+    }
+
+    /** Restoring overwrites settings wholesale, so it is confirmed first. */
+    private void confirmRestore(Uri source) {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.settings_restore_confirm_title)
+                .setMessage(R.string.settings_restore_confirm_message)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.settings_restore_confirm_button, (dialog, which) -> restoreSettings(source))
+                .show();
+    }
+
+    private void restoreSettings(Uri source) {
+        int restored = SettingsBackupUtil.restore(requireContext(), source);
+
+        if (restored < 0) {
+            Toast.makeText(requireContext(), R.string.settings_restore_failure, Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        Toast.makeText(requireContext(), getString(R.string.settings_restore_success, restored), Toast.LENGTH_LONG).show();
+
+        // Theme and language are read once at startup, and the preference
+        // screen shows values it cached, so the activity is rebuilt rather than
+        // left displaying the settings that were just replaced.
+        ThemeHelper.applyTheme(App.getInstance().getPreferences().getString(Preferences.THEME, ThemeHelper.DEFAULT_MODE));
+        requireActivity().recreate();
     }
 
     private void actionPopinnSettings() {

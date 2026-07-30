@@ -584,6 +584,20 @@
                 app:icon="@drawable/ic_close" />
         </PreferenceCategory>
 
+        <PreferenceCategory app:title="@string/settings_backup_restore_category">
+            <Preference
+                android:key="settings_backup"
+                android:title="@string/settings_backup_title"
+                android:summary="@string/settings_backup_summary"
+                app:icon="@drawable/ic_download" />
+
+            <Preference
+                android:key="settings_restore"
+                android:title="@string/settings_restore_title"
+                android:summary="@string/settings_restore_summary"
+                app:icon="@drawable/ic_refresh" />
+        </PreferenceCategory>
+
         <PreferenceCategory app:title="Info">
             <Preference
                 app:summary="@string/settings_github_summary"
