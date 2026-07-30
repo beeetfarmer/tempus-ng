@@ -7,6 +7,15 @@
         <item name="windowSplashScreenAnimationDuration">100</item>
     </style>
 
+    <!-- Video fills the screen, so the player gets a black surround in both
+         light and dark rather than inheriting the app background. -->
+    <style name="Theme.MusicVideoPlayer" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:colorBackground">@android:color/black</item>
+        <item name="android:navigationBarColor">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
     <style name="AppTheme" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/md_theme_light_primary</item>
         <item name="colorOnPrimary">@color/md_theme_light_onPrimary</item>

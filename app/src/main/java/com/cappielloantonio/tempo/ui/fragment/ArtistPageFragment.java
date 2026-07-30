@@ -37,9 +37,12 @@ import com.cappielloantonio.tempo.service.MediaService;
 import com.cappielloantonio.tempo.subsonic.models.ArtistID3;
 import com.cappielloantonio.tempo.subsonic.models.Child;
 import com.cappielloantonio.tempo.ui.activity.MainActivity;
+import com.cappielloantonio.tempo.popinn.PopinnVideo;
+import com.cappielloantonio.tempo.ui.activity.MusicVideoPlayerActivity;
 import com.cappielloantonio.tempo.ui.adapter.AlbumCarouselAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ArtistCarouselAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ArtistCatalogueAdapter;
+import com.cappielloantonio.tempo.ui.adapter.MusicVideoCarouselAdapter;
 import com.cappielloantonio.tempo.ui.adapter.SongHorizontalAdapter;
 import com.cappielloantonio.tempo.util.Constants;
 import com.cappielloantonio.tempo.util.MusicUtil;
@@ -65,6 +68,7 @@ public class ArtistPageFragment extends Fragment implements ClickCallback {
     private AlbumCarouselAdapter singleAdapter;
     private AlbumCarouselAdapter appearsOnAdapter;
     private ArtistCarouselAdapter similarArtistAdapter;
+    private MusicVideoCarouselAdapter musicVideoAdapter;
 
     private ListenableFuture<MediaBrowser> mediaBrowserListenableFuture;
 
@@ -88,6 +92,7 @@ public class ArtistPageFragment extends Fragment implements ClickCallback {
         initArtistInfo();
         initPlayButtons();
         initTopSongsView();
+        initMusicVideosView();
         initCategorizedAlbumsView();
         initSimilarArtistsView();
 
@@ -290,6 +295,43 @@ public class ArtistPageFragment extends Fragment implements ClickCallback {
         });
     }
 
+    private void initMusicVideosView() {
+        bind.musicVideosRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+        bind.musicVideosRecyclerView.setHasFixedSize(true);
+
+        musicVideoAdapter = new MusicVideoCarouselAdapter(this);
+        bind.musicVideosRecyclerView.setAdapter(musicVideoAdapter);
+
+        artistPageViewModel.getMusicVideos().observe(getViewLifecycleOwner(), result -> {
+            if (bind == null) return;
+
+            List<PopinnVideo> videos = result != null ? result.getVideos() : null;
+            boolean hasVideos = videos != null && !videos.isEmpty();
+            bind.artistPageMusicVideosSector.setVisibility(hasVideos ? View.VISIBLE : View.GONE);
+
+            if (!hasVideos) return;
+
+            musicVideoAdapter.setItems(videos);
+
+            // The carousel holds one page; anything beyond it lives behind "See all".
+            boolean hasMore = result.getTotal() > videos.size();
+            bind.musicVideosSeeAllTextView.setVisibility(hasMore ? View.VISIBLE : View.GONE);
+            bind.musicVideosSeeAllTextView.setOnClickListener(v -> navigateToMusicVideoList(result.getArtistId()));
+        });
+
+        CustomLinearSnapHelper musicVideoSnapHelper = new CustomLinearSnapHelper();
+        musicVideoSnapHelper.attachToRecyclerView(bind.musicVideosRecyclerView);
+    }
+
+    private void navigateToMusicVideoList(String popinnArtistId) {
+        if (popinnArtistId == null) return;
+
+        Bundle bundle = new Bundle();
+        bundle.putString(Constants.MUSIC_VIDEO_ARTIST_ID, popinnArtistId);
+        bundle.putString(Constants.MUSIC_VIDEO_ARTIST_NAME, artistPageViewModel.getArtist().getName());
+        Navigation.findNavController(requireView()).navigate(R.id.musicVideoListPageFragment, bundle);
+    }
+
     private void initCategorizedAlbumsView() {
         // Main Albums
         bind.mainAlbumsRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
@@ -423,6 +465,11 @@ public class ArtistPageFragment extends Fragment implements ClickCallback {
     @Override
     public void onArtistClick(Bundle bundle) {
         Navigation.findNavController(requireView()).navigate(R.id.artistPageFragment, bundle);
+    }
+
+    @Override
+    public void onMusicVideoClick(Bundle bundle) {
+        MusicVideoPlayerActivity.start(requireContext(), bundle.getParcelable(Constants.MUSIC_VIDEO_OBJECT));
     }
 
     @Override

@@ -54,6 +54,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.activity.MusicVideoPlayerActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:exported="false"
+            android:screenOrientation="fullSensor"
+            android:theme="@style/Theme.MusicVideoPlayer" />
+
         <service
             android:name=".service.MediaService"
             android:exported="true"

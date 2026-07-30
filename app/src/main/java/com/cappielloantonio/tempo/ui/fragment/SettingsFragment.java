@@ -46,6 +46,8 @@ import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.helper.ThemeHelper;
 import com.cappielloantonio.tempo.interfaces.DialogClickCallback;
 import com.cappielloantonio.tempo.interfaces.ScanCallback;
+import com.cappielloantonio.tempo.popinn.PopinnClient;
+import com.cappielloantonio.tempo.popinn.PopinnRepository;
 import com.cappielloantonio.tempo.service.EqualizerManager;
 import com.cappielloantonio.tempo.service.MediaService;
 import com.cappielloantonio.tempo.ui.activity.MainActivity;
@@ -308,6 +310,7 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Prefer
         actionLyricsRomanization();
         actionTranslationSettings();
         actionLastFmSettings();
+        actionPopinnSettings();
         actionConfigureDock();
         actionConfigureMetadata();
 
@@ -818,6 +821,81 @@ public class SettingsFragment extends PreferenceFragmentCompat implements Prefer
                 return false;
             });
         }
+    }
+
+    private void actionPopinnSettings() {
+        // Any of these can change which server we talk to, so the cached client
+        // and the artist name -> id matches it produced are both dropped.
+        Preference.OnPreferenceChangeListener invalidateClient = (pref, newValue) -> {
+            PopinnClient.reset();
+            PopinnRepository.clearCache();
+            return true;
+        };
+
+        EditTextPreference serverUrlPref = findPreference(Preferences.POPINN_SERVER_URL);
+        if (serverUrlPref != null) {
+            serverUrlPref.setOnPreferenceChangeListener(invalidateClient);
+        }
+
+        EditTextPreference emailPref = findPreference(Preferences.POPINN_EMAIL);
+        if (emailPref != null) {
+            emailPref.setOnPreferenceChangeListener(invalidateClient);
+        }
+
+        // Kept out of plain SharedPreferences, so it is written by hand and the
+        // listener returns false to stop the framework persisting it too.
+        EditTextPreference passwordPref = findPreference(Preferences.POPINN_PASSWORD);
+        if (passwordPref != null) {
+            // Not pre-filled: EditTextPreference.setText() would persist it to
+            // plain SharedPreferences, which is the whole thing being avoided.
+            passwordPref.setSummaryProvider(null);
+            passwordPref.setSummary(maskSecret(Preferences.getPopinnPassword()));
+            passwordPref.setOnPreferenceChangeListener((pref, newValue) -> {
+                String password = (String) newValue;
+                Preferences.setPopinnPassword(password);
+                pref.setSummary(maskSecret(password));
+                PopinnClient.reset();
+                PopinnRepository.clearCache();
+                return false;
+            });
+        }
+
+        Preference testPref = findPreference(Preferences.POPINN_TEST_CONNECTION);
+        if (testPref != null) {
+            testPref.setOnPreferenceClickListener(preference -> {
+                if (!PopinnClient.isConfigured()) {
+                    Toast.makeText(requireContext(), R.string.settings_popinn_test_connection_incomplete, Toast.LENGTH_LONG).show();
+                    return true;
+                }
+
+                preference.setSummary(R.string.settings_popinn_test_connection_progress);
+                PopinnClient.reset();
+                PopinnRepository.clearCache();
+
+                new Thread(() -> {
+                    boolean connected = PopinnClient.testConnection();
+                    Activity activity = getActivity();
+                    if (activity == null) return;
+
+                    activity.runOnUiThread(() -> {
+                        if (!isAdded()) return;
+                        preference.setSummary(R.string.settings_popinn_test_connection_summary);
+                        Toast.makeText(
+                                requireContext(),
+                                connected ? R.string.settings_popinn_test_connection_success : R.string.settings_popinn_test_connection_failure,
+                                Toast.LENGTH_LONG
+                        ).show();
+                    });
+                }).start();
+
+                return true;
+            });
+        }
+    }
+
+    private String maskSecret(String secret) {
+        if (secret == null || secret.isEmpty()) return null;
+        return secret.substring(0, Math.min(2, secret.length())) + "••••••";
     }
 
     private void updateTranslationSettingsVisibility(String provider) {

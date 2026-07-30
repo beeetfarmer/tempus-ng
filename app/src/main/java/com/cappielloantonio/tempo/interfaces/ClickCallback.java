@@ -35,6 +35,7 @@ public interface ClickCallback {
     default void onDownloadGroupLongClick(Bundle bundle) {}
     default void onPlaylistFolderClick(Bundle bundle) {}
     default void onPlaylistFolderLongClick(Bundle bundle) {}
+    default void onMusicVideoClick(Bundle bundle) {}
     default void onShareClick(Bundle bundle) {}
     default void onShareLongClick(Bundle bundle) {}
 }

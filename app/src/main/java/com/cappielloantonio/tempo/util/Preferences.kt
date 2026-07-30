@@ -106,6 +106,10 @@ object Preferences {
     private const val HOME_SCREEN_TITLE_ENABLED = "home_screen_title_enabled"
     private const val ALBUM_CATALOGUE_LIST_MODE = "album_catalogue_list_mode"
     private const val ARTIST_CATALOGUE_LIST_MODE = "artist_catalogue_list_mode"
+    const val POPINN_SERVER_URL = "popinn_server_url"
+    const val POPINN_EMAIL = "popinn_email"
+    const val POPINN_PASSWORD = "popinn_password"
+    const val POPINN_TEST_CONNECTION = "popinn_test_connection"
 
 
     @JvmStatic
@@ -116,6 +120,36 @@ object Preferences {
     @JvmStatic
     fun setServer(server: String?) {
         App.getInstance().preferences.edit().putString(SERVER, server).apply()
+    }
+
+    @JvmStatic
+    fun getPopinnServerUrl(): String? {
+        return App.getInstance().preferences.getString(POPINN_SERVER_URL, null)
+    }
+
+    @JvmStatic
+    fun setPopinnServerUrl(url: String?) {
+        App.getInstance().preferences.edit().putString(POPINN_SERVER_URL, url).apply()
+    }
+
+    @JvmStatic
+    fun getPopinnEmail(): String? {
+        return App.getInstance().preferences.getString(POPINN_EMAIL, null)
+    }
+
+    @JvmStatic
+    fun setPopinnEmail(email: String?) {
+        App.getInstance().preferences.edit().putString(POPINN_EMAIL, email).apply()
+    }
+
+    @JvmStatic
+    fun getPopinnPassword(): String? {
+        return App.getInstance().encryptedPreferences.getString(POPINN_PASSWORD, null)
+    }
+
+    @JvmStatic
+    fun setPopinnPassword(password: String?) {
+        App.getInstance().encryptedPreferences.edit().putString(POPINN_PASSWORD, password).apply()
     }
 
     @JvmStatic

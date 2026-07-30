@@ -233,7 +233,15 @@
         <action
             android:id="@+id/action_artistPageFragment_to_songListPageFragment"
             app:destination="@id/songListPageFragment" />
+        <action
+            android:id="@+id/action_artistPageFragment_to_musicVideoListPageFragment"
+            app:destination="@id/musicVideoListPageFragment" />
     </fragment>
+    <fragment
+        android:id="@+id/musicVideoListPageFragment"
+        android:name="com.cappielloantonio.tempo.ui.fragment.MusicVideoListPageFragment"
+        android:label="MusicVideoListPageFragment"
+        tools:layout="@layout/fragment_music_video_list_page" />
     <fragment
         android:id="@+id/albumPageFragment"
         android:name="com.cappielloantonio.tempo.ui.fragment.AlbumPageFragment"

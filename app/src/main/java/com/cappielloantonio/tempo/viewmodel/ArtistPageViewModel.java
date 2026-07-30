@@ -13,6 +13,8 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.cappielloantonio.tempo.model.Download;
 import com.cappielloantonio.tempo.interfaces.StarCallback;
+import com.cappielloantonio.tempo.popinn.PopinnArtistVideos;
+import com.cappielloantonio.tempo.popinn.PopinnRepository;
 import com.cappielloantonio.tempo.repository.AlbumRepository;
 import com.cappielloantonio.tempo.repository.ArtistRepository;
 import com.cappielloantonio.tempo.repository.FavoriteRepository;
@@ -31,9 +33,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class ArtistPageViewModel extends AndroidViewModel {
+    /** Videos shown in the artist page carousel before "See all" takes over. */
+    public static final int MUSIC_VIDEO_CAROUSEL_SIZE = 5;
+
     private final AlbumRepository albumRepository;
     private final ArtistRepository artistRepository;
     private final FavoriteRepository favoriteRepository;
+    private final PopinnRepository popinnRepository;
 
     private ArtistID3 artist;
 
@@ -48,6 +54,16 @@ public class ArtistPageViewModel extends AndroidViewModel {
         albumRepository = new AlbumRepository();
         artistRepository = new ArtistRepository();
         favoriteRepository = new FavoriteRepository();
+        popinnRepository = new PopinnRepository();
+    }
+
+    /**
+     * Music videos for this artist from the configured Popinn server, newest
+     * first. Emits an empty result when no server is set up, when the artist is
+     * unknown to it, or when it cannot be reached.
+     */
+    public LiveData<PopinnArtistVideos> getMusicVideos() {
+        return popinnRepository.getArtistVideos(artist.getName(), MUSIC_VIDEO_CAROUSEL_SIZE);
     }
 
     public void fetchCategorizedAlbums(androidx.lifecycle.LifecycleOwner owner) {

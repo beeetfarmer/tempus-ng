@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/music_video_thumbnail_image_view"
+        android:layout_width="220dp"
+        android:layout_height="124dp"
+        android:scaleType="centerCrop"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/music_video_duration_label"
+        style="@style/LabelSmall"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="6dp"
+        android:background="@drawable/bg_music_video_duration"
+        android:paddingStart="5dp"
+        android:paddingTop="1dp"
+        android:paddingEnd="5dp"
+        android:paddingBottom="1dp"
+        android:textColor="@color/white"
+        app:layout_constraintBottom_toBottomOf="@+id/music_video_thumbnail_image_view"
+        app:layout_constraintEnd_toEndOf="@+id/music_video_thumbnail_image_view"
+        tools:text="3:47" />
+
+    <TextView
+        android:id="@+id/music_video_title_label"
+        style="@style/LabelMedium"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:ellipsize="marquee"
+        android:gravity="center"
+        android:maxWidth="220dp"
+        android:paddingTop="8dp"
+        android:singleLine="true"
+        app:layout_constraintEnd_toEndOf="@+id/music_video_thumbnail_image_view"
+        app:layout_constraintStart_toStartOf="@+id/music_video_thumbnail_image_view"
+        app:layout_constraintTop_toBottomOf="@+id/music_video_thumbnail_image_view"
+        tools:text="Video title" />
+
+    <TextView
+        android:id="@+id/music_video_subtitle_label"
+        style="@style/LabelSmall"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:ellipsize="marquee"
+        android:gravity="center"
+        android:maxWidth="220dp"
+        android:singleLine="true"
+        app:layout_constraintEnd_toEndOf="@+id/music_video_thumbnail_image_view"
+        app:layout_constraintStart_toStartOf="@+id/music_video_thumbnail_image_view"
+        app:layout_constraintTop_toBottomOf="@+id/music_video_title_label"
+        tools:text="2024" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
