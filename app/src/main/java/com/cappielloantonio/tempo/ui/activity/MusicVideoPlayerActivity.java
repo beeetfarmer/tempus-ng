@@ -7,6 +7,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,6 +38,7 @@ import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.databinding.ActivityMusicVideoPlayerBinding;
 import com.cappielloantonio.tempo.popinn.PopinnApi;
 import com.cappielloantonio.tempo.popinn.PopinnClient;
+import com.cappielloantonio.tempo.popinn.PopinnPlayRequest;
 import com.cappielloantonio.tempo.popinn.PopinnSubtitle;
 import com.cappielloantonio.tempo.popinn.PopinnVideo;
 import com.cappielloantonio.tempo.util.Constants;
@@ -51,12 +54,15 @@ import retrofit2.Response;
 /**
  * Plays one Popinn music video, and nothing else.
  *
- * Deliberately separate from {@link MainActivity} and its media session: this is
- * for watching, so it reports no plays, writes no history and does not touch the
- * music queue. It does take audio focus, which pauses whatever music was playing.
+ * Deliberately separate from {@link MainActivity} and its media session: it does
+ * not touch the music queue and nothing here is scrobbled to Subsonic. It does
+ * take audio focus, which pauses whatever music was playing, and it reports
+ * watch time back to Popinn so its own view counts stay accurate.
  */
 @OptIn(markerClass = UnstableApi.class)
 public class MusicVideoPlayerActivity extends AppCompatActivity {
+    private static final String TAG = "MusicVideoPlayer";
+
     /** Seconds moved per double tap, accumulating while taps keep coming. */
     private static final int SEEK_STEP_SECONDS = 10;
     private static final long SEEK_FEEDBACK_TIMEOUT_MS = 800;
@@ -71,6 +77,18 @@ public class MusicVideoPlayerActivity extends AppCompatActivity {
     private final Runnable hideSeekFeedback = this::hideSeekFeedback;
     private int accumulatedSeekSeconds;
     private boolean lastSeekWasForward;
+
+    /**
+     * Wall-clock time spent actually playing, accumulated across pauses and any
+     * trip through the background. Measured this way rather than from the
+     * playhead so that seeking backwards and rewatching a section cannot
+     * overstate it, and skipping forward cannot claim credit for what was
+     * never on screen.
+     */
+    private long watchedMs;
+    private long watchStartedAtMs = C.TIME_UNSET;
+    private int knownDurationSeconds;
+    private boolean playReported;
 
     public static void start(Context context, @Nullable PopinnVideo video) {
         if (video == null) return;
@@ -295,8 +313,24 @@ public class MusicVideoPlayerActivity extends AppCompatActivity {
         player.addListener(new Player.Listener() {
             @Override
             public void onPlaybackStateChanged(int playbackState) {
-                if (bind == null) return;
-                bind.musicVideoProgressBar.setVisibility(playbackState == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
+                if (bind != null) {
+                    bind.musicVideoProgressBar.setVisibility(playbackState == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
+                }
+
+                if (playbackState == Player.STATE_READY) rememberDuration();
+
+                // Watching to the end is a finished view whether or not the
+                // screen is closed afterwards, so it is reported straight away.
+                if (playbackState == Player.STATE_ENDED) {
+                    stopWatchClock();
+                    reportPlay();
+                }
+            }
+
+            @Override
+            public void onIsPlayingChanged(boolean isPlaying) {
+                if (isPlaying) startWatchClock();
+                else stopWatchClock();
             }
 
             @Override
@@ -352,10 +386,75 @@ public class MusicVideoPlayerActivity extends AppCompatActivity {
     private void releasePlayer() {
         if (player == null) return;
 
+        stopWatchClock();
+        rememberDuration();
         resumePosition = player.getCurrentPosition();
         if (bind != null) bind.musicVideoPlayerView.setPlayer(null);
         player.release();
         player = null;
+
+        // Only on the way out. Backgrounding the app also lands here, and that
+        // is a pause in one viewing, not the end of it — the clock resumes when
+        // the activity comes back.
+        if (isFinishing()) reportPlay();
+    }
+
+    private void startWatchClock() {
+        if (watchStartedAtMs == C.TIME_UNSET) watchStartedAtMs = SystemClock.elapsedRealtime();
+    }
+
+    private void stopWatchClock() {
+        if (watchStartedAtMs == C.TIME_UNSET) return;
+
+        watchedMs += SystemClock.elapsedRealtime() - watchStartedAtMs;
+        watchStartedAtMs = C.TIME_UNSET;
+    }
+
+    /** Kept for the report, which is sent after the player is gone. */
+    private void rememberDuration() {
+        if (player == null) return;
+
+        long duration = player.getDuration();
+        if (duration != C.TIME_UNSET && duration > 0) {
+            knownDurationSeconds = (int) (duration / 1000);
+        }
+    }
+
+    /**
+     * Tells the server how long this video was watched. It decides for itself
+     * whether that clears VIEW_THRESHOLD_RATIO and counts as a view, so nothing
+     * here needs to know the threshold. Fire and forget: a failed report is not
+     * worth interrupting the user over.
+     */
+    private void reportPlay() {
+        if (playReported || video.getId() == null) return;
+
+        long watchedSeconds = watchedMs / 1000;
+        if (watchedSeconds < 1) return;
+
+        PopinnApi api = PopinnClient.getApi();
+        if (api == null) return;
+
+        playReported = true;
+
+        Integer duration = video.getDuration() != null && video.getDuration() > 0
+                ? video.getDuration()
+                : (knownDurationSeconds > 0 ? knownDurationSeconds : null);
+
+        api.recordPlay(video.getId(), new PopinnPlayRequest(watchedSeconds, duration))
+                .enqueue(new Callback<Void>() {
+                    @Override
+                    public void onResponse(@NonNull Call<Void> call, @NonNull Response<Void> response) {
+                        if (!response.isSuccessful()) {
+                            Log.w(TAG, "Play report rejected: HTTP " + response.code());
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<Void> call, @NonNull Throwable throwable) {
+                        Log.w(TAG, "Play report failed", throwable);
+                    }
+                });
     }
 
     private void showErrorAndFinish() {

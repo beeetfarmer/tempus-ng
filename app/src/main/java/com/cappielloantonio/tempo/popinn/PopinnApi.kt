@@ -29,4 +29,12 @@ interface PopinnApi {
     // Subtitles are not part of the video payload, so they are a separate trip.
     @GET("api/v1/videos/{video_id}/subtitles")
     fun getSubtitles(@Path("video_id") videoId: String): Call<List<PopinnSubtitle>>
+
+    // No CSRF header needed: the server only enforces it when an access cookie
+    // is present, and this client authenticates by bearer token.
+    @POST("api/v1/videos/{video_id}/plays")
+    fun recordPlay(
+        @Path("video_id") videoId: String,
+        @Body body: PopinnPlayRequest
+    ): Call<Void>
 }

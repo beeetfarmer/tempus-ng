@@ -62,6 +62,18 @@ data class PopinnVideo(
     var durationDisplay: String? = null
 ) : Parcelable
 
+/**
+ * Report of how much of a video was actually watched. Whether that amounts to a
+ * view is the server's decision, taken from VIEW_THRESHOLD_RATIO.
+ */
+@Keep
+data class PopinnPlayRequest(
+    @SerializedName("watched_seconds")
+    var watchedSeconds: Double = 0.0,
+    @SerializedName("video_duration_seconds")
+    var videoDurationSeconds: Int? = null
+)
+
 @Keep
 data class PopinnSubtitle(
     var id: String? = null,
