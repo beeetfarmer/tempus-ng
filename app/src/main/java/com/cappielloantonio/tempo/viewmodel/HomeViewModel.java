@@ -13,6 +13,9 @@ import com.cappielloantonio.tempo.interfaces.StarCallback;
 import com.cappielloantonio.tempo.model.Chronology;
 import com.cappielloantonio.tempo.model.Favorite;
 import com.cappielloantonio.tempo.model.HomeSector;
+import com.cappielloantonio.tempo.popinn.PopinnClient;
+import com.cappielloantonio.tempo.popinn.PopinnRepository;
+import com.cappielloantonio.tempo.popinn.PopinnVideo;
 import com.cappielloantonio.tempo.repository.AlbumRepository;
 import com.cappielloantonio.tempo.repository.ArtistRepository;
 import com.cappielloantonio.tempo.repository.ChronologyRepository;
@@ -42,6 +45,9 @@ import java.util.List;
 public class HomeViewModel extends AndroidViewModel {
     private static final String TAG = "HomeViewModel";
 
+    /** Videos in the home carousel. */
+    private static final int RECENTLY_ADDED_VIDEOS_SIZE = 20;
+
     private final SongRepository songRepository;
     private final AlbumRepository albumRepository;
     private final ArtistRepository artistRepository;
@@ -49,6 +55,7 @@ public class HomeViewModel extends AndroidViewModel {
     private final FavoriteRepository favoriteRepository;
     private final PlaylistRepository playlistRepository;
     private final SharingRepository sharingRepository;
+    private final PopinnRepository popinnRepository;
 
     private final StarredAlbumsSyncViewModel albumsSyncViewModel;
     private final StarredArtistsSyncViewModel artistSyncViewModel;
@@ -65,6 +72,7 @@ public class HomeViewModel extends AndroidViewModel {
     private final MutableLiveData<List<AlbumID3>> recentlyPlayedAlbumSample = new MutableLiveData<>(null);
     private final MutableLiveData<List<Integer>> years = new MutableLiveData<>(null);
     private final MutableLiveData<List<AlbumID3>> recentlyAddedAlbumSample = new MutableLiveData<>(null);
+    private final MutableLiveData<List<PopinnVideo>> recentlyAddedVideoSample = new MutableLiveData<>(null);
 
     private final MutableLiveData<List<Chronology>> thisGridTopSong = new MutableLiveData<>(null);
     private final MutableLiveData<List<Child>> history = new MutableLiveData<>(null);
@@ -93,6 +101,7 @@ public class HomeViewModel extends AndroidViewModel {
         favoriteRepository = new FavoriteRepository();
         playlistRepository = new PlaylistRepository();
         sharingRepository = new SharingRepository();
+        popinnRepository = new PopinnRepository();
 
         albumsSyncViewModel = new StarredAlbumsSyncViewModel(application);
         artistSyncViewModel = new StarredArtistsSyncViewModel(application);
@@ -256,6 +265,23 @@ public class HomeViewModel extends AndroidViewModel {
         }
 
         return mostPlayedAlbumSample;
+    }
+
+    /**
+     * The newest music videos on the Popinn server. Empty when none is
+     * configured or it cannot be reached, which hides the section.
+     */
+    public LiveData<List<PopinnVideo>> getRecentlyAddedVideos(LifecycleOwner owner) {
+        if (recentlyAddedVideoSample.getValue() == null) {
+            popinnRepository.getVideoCataloguePage(
+                    0,
+                    RECENTLY_ADDED_VIDEOS_SIZE,
+                    PopinnClient.SORT_LATEST,
+                    PopinnClient.SORT_ORDER_DESC
+            ).observe(owner, result -> recentlyAddedVideoSample.postValue(result.getVideos()));
+        }
+
+        return recentlyAddedVideoSample;
     }
 
     public LiveData<List<AlbumID3>> getMostRecentlyAddedAlbums(LifecycleOwner owner) {

@@ -46,12 +46,14 @@ import com.cappielloantonio.tempo.subsonic.models.ArtistID3;
 import com.cappielloantonio.tempo.subsonic.models.Child;
 import com.cappielloantonio.tempo.subsonic.models.Share;
 import com.cappielloantonio.tempo.ui.activity.MainActivity;
+import com.cappielloantonio.tempo.ui.activity.MusicVideoPlayerActivity;
 import com.cappielloantonio.tempo.ui.adapter.AlbumAdapter;
 import com.cappielloantonio.tempo.ui.adapter.AlbumCarouselAdapter;
 import com.cappielloantonio.tempo.ui.adapter.AlbumHorizontalAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ArtistAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ArtistHorizontalAdapter;
 import com.cappielloantonio.tempo.ui.adapter.DiscoverSongAdapter;
+import com.cappielloantonio.tempo.ui.adapter.MusicVideoCarouselAdapter;
 import com.cappielloantonio.tempo.ui.adapter.PlaylistHorizontalAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ShareHorizontalAdapter;
 import com.cappielloantonio.tempo.ui.adapter.SimilarTrackAdapter;
@@ -96,6 +98,7 @@ public class HomeTabMusicFragment extends Fragment implements ClickCallback {
     private AlbumHorizontalAdapter starredAlbumAdapter;
     private ArtistHorizontalAdapter starredArtistAdapter;
     private AlbumAdapter recentlyAddedAlbumAdapter;
+    private MusicVideoCarouselAdapter recentlyAddedVideoAdapter;
     private AlbumAdapter recentlyPlayedAlbumAdapter;
     private AlbumAdapter mostPlayedAlbumAdapter;
     private AlbumCarouselAdapter newReleasesAlbumAdapter;
@@ -1226,6 +1229,30 @@ public class HomeTabMusicFragment extends Fragment implements ClickCallback {
         recentAddedAlbumSnapHelper.attachToRecyclerView(bind.recentlyAddedAlbumsRecyclerView);
     }
 
+    private void initRecentAddedVideoView() {
+        if (recentlyAddedVideoAdapter != null) return;
+        if (homeViewModel.checkHomeSectorVisibility(Constants.HOME_SECTOR_RECENTLY_ADDED_VIDEOS)) return;
+
+        bind.recentlyAddedVideosRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false));
+        bind.recentlyAddedVideosRecyclerView.setHasFixedSize(true);
+
+        recentlyAddedVideoAdapter = new MusicVideoCarouselAdapter(this);
+        bind.recentlyAddedVideosRecyclerView.setAdapter(recentlyAddedVideoAdapter);
+        homeViewModel.getRecentlyAddedVideos(getViewLifecycleOwner()).observe(getViewLifecycleOwner(), videos -> {
+            if (bind == null) return;
+
+            // Stays hidden unless a Popinn server is configured and reachable.
+            bind.homeRecentlyAddedVideosSector.setVisibility(videos != null && !videos.isEmpty() ? View.VISIBLE : View.GONE);
+            if (videos != null) recentlyAddedVideoAdapter.setItems(videos);
+        });
+
+        bind.recentlyAddedVideosTextViewClickable.setOnClickListener(v ->
+                Navigation.findNavController(requireView()).navigate(R.id.musicVideoCatalogueFragment));
+
+        CustomLinearSnapHelper recentAddedVideoSnapHelper = new CustomLinearSnapHelper();
+        recentAddedVideoSnapHelper.attachToRecyclerView(bind.recentlyAddedVideosRecyclerView);
+    }
+
     private void initPinnedPlaylistsView() {
         if (playlistHorizontalAdapter != null) return;
         if (homeViewModel.checkHomeSectorVisibility(Constants.HOME_SECTOR_PINNED_PLAYLISTS)) return;
@@ -1448,6 +1475,11 @@ public class HomeTabMusicFragment extends Fragment implements ClickCallback {
                         bind.topPlayedSongsSector.setVisibility(View.VISIBLE);
                         bind.homeLinearLayoutContainer.addView(bind.topPlayedSongsSector);
                         break;
+                    case Constants.HOME_SECTOR_RECENTLY_ADDED_VIDEOS:
+                        initRecentAddedVideoView();
+                        bind.homeRecentlyAddedVideosSector.setVisibility(View.VISIBLE);
+                        bind.homeLinearLayoutContainer.addView(bind.homeRecentlyAddedVideosSector);
+                        break;
                 }
             }
 
@@ -1542,6 +1574,11 @@ public class HomeTabMusicFragment extends Fragment implements ClickCallback {
     @Override
     public void onAlbumLongClick(Bundle bundle) {
         Navigation.findNavController(requireView()).navigate(R.id.albumBottomSheetDialog, bundle);
+    }
+
+    @Override
+    public void onMusicVideoClick(Bundle bundle) {
+        MusicVideoPlayerActivity.start(requireContext(), bundle.getParcelable(Constants.MUSIC_VIDEO_OBJECT));
     }
 
     @Override
