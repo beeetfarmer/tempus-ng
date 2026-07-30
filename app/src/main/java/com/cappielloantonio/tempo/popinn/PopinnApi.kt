@@ -17,10 +17,15 @@ interface PopinnApi {
         @Query("limit") limit: Int
     ): Call<List<PopinnArtist>>
 
-    /** A null artistId drops the query parameter, giving the whole library. */
+    /**
+     * Null filters drop their query parameter, so the same call serves one
+     * artist, a title search, or the whole library. `search` matches the title
+     * only — the server has no artist-aware video search.
+     */
     @GET("api/v1/videos/")
     fun getVideos(
         @Query("artist_id") artistId: String?,
+        @Query("search") search: String?,
         @Query("sort_by") sortBy: String,
         @Query("sort_order") sortOrder: String,
         @Query("skip") skip: Int,

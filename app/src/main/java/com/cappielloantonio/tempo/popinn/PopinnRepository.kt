@@ -124,7 +124,7 @@ class PopinnRepository {
         }
 
         val limit = count.coerceIn(1, PopinnClient.MAX_PAGE_SIZE)
-        api.getVideos(null, PopinnClient.SORT_LATEST, PopinnClient.SORT_ORDER_DESC, 0, limit)
+        api.getVideos(null, null, PopinnClient.SORT_LATEST, PopinnClient.SORT_ORDER_DESC, 0, limit)
             .enqueue(object : Callback<PopinnVideoPage> {
                 override fun onResponse(call: Call<PopinnVideoPage>, response: Response<PopinnVideoPage>) {
                     val page = response.body()
@@ -140,7 +140,7 @@ class PopinnRepository {
                     }
 
                     val randomSkip = (0..(page.total - limit)).random()
-                    api.getVideos(null, PopinnClient.SORT_LATEST, PopinnClient.SORT_ORDER_DESC, randomSkip, limit)
+                    api.getVideos(null, null, PopinnClient.SORT_LATEST, PopinnClient.SORT_ORDER_DESC, randomSkip, limit)
                         .enqueue(object : Callback<PopinnVideoPage> {
                             override fun onResponse(call: Call<PopinnVideoPage>, response: Response<PopinnVideoPage>) {
                                 val randomPage = response.body()
@@ -169,6 +169,111 @@ class PopinnRepository {
             })
 
         return result
+    }
+
+    /**
+     * Videos matching a search query.
+     *
+     * The server searches video titles only, which misses the common case of
+     * looking up an artist whose videos are titled with just the song name. So
+     * the artist index is searched in parallel and an exact match contributes
+     * its videos too. Title hits come first, since a query that names a video
+     * is a more direct hit than one that names its artist.
+     */
+    fun searchVideos(query: String?, limit: Int): LiveData<PopinnVideoResult> {
+        val result = MutableLiveData<PopinnVideoResult>()
+
+        if (query.isNullOrBlank() || !PopinnClient.isConfigured()) {
+            result.value = PopinnVideoResult.empty()
+            return result
+        }
+
+        val api = PopinnClient.getApi()
+        if (api == null) {
+            result.value = PopinnVideoResult.empty()
+            return result
+        }
+
+        val capped = limit.coerceIn(1, PopinnClient.MAX_PAGE_SIZE)
+        api.getVideos(null, query, PopinnClient.SORT_LATEST, PopinnClient.SORT_ORDER_DESC, 0, capped)
+            .enqueue(object : Callback<PopinnVideoPage> {
+                override fun onResponse(call: Call<PopinnVideoPage>, response: Response<PopinnVideoPage>) {
+                    val titleMatches = if (response.isSuccessful) {
+                        response.body()?.items ?: emptyList()
+                    } else {
+                        Log.w(TAG, "Video search failed: HTTP ${response.code()}")
+                        emptyList()
+                    }
+
+                    appendArtistMatches(api, query, capped, titleMatches, result)
+                }
+
+                override fun onFailure(call: Call<PopinnVideoPage>, throwable: Throwable) {
+                    Log.w(TAG, "Video search failed", throwable)
+                    result.postValue(PopinnVideoResult.empty())
+                }
+            })
+
+        return result
+    }
+
+    private fun appendArtistMatches(
+        api: PopinnApi,
+        query: String,
+        limit: Int,
+        titleMatches: List<PopinnVideo>,
+        result: MutableLiveData<PopinnVideoResult>
+    ) {
+        fun postTitleMatchesOnly() {
+            result.postValue(PopinnVideoResult(null, titleMatches, titleMatches.size, 0))
+        }
+
+        api.searchArtists(query, ARTIST_SEARCH_LIMIT)
+            .enqueue(object : Callback<List<PopinnArtist>> {
+                override fun onResponse(
+                    call: Call<List<PopinnArtist>>,
+                    response: Response<List<PopinnArtist>>
+                ) {
+                    val artistId = if (response.isSuccessful) bestMatch(response.body(), query)?.id else null
+                    if (artistId == null) {
+                        postTitleMatchesOnly()
+                        return
+                    }
+
+                    api.getVideos(artistId, null, PopinnClient.SORT_LATEST, PopinnClient.SORT_ORDER_DESC, 0, limit)
+                        .enqueue(object : Callback<PopinnVideoPage> {
+                            override fun onResponse(call: Call<PopinnVideoPage>, response: Response<PopinnVideoPage>) {
+                                val artistVideos = if (response.isSuccessful) {
+                                    response.body()?.items ?: emptyList()
+                                } else {
+                                    emptyList()
+                                }
+
+                                // A video whose title also matched is already in
+                                // the list, so it is not added twice.
+                                val seen = titleMatches.mapNotNull { it.id }.toMutableSet()
+                                val merged = titleMatches.toMutableList()
+                                for (video in artistVideos) {
+                                    val videoId = video.id ?: continue
+                                    if (seen.add(videoId)) merged.add(video)
+                                }
+
+                                val capped = merged.take(limit)
+                                result.postValue(PopinnVideoResult(artistId, capped, capped.size, 0))
+                            }
+
+                            override fun onFailure(call: Call<PopinnVideoPage>, throwable: Throwable) {
+                                Log.w(TAG, "Artist video search failed", throwable)
+                                postTitleMatchesOnly()
+                            }
+                        })
+                }
+
+                override fun onFailure(call: Call<List<PopinnArtist>>, throwable: Throwable) {
+                    Log.w(TAG, "Artist search failed", throwable)
+                    postTitleMatchesOnly()
+                }
+            })
     }
 
     private fun resolveThenFetch(
@@ -221,6 +326,7 @@ class PopinnRepository {
     ) {
         api.getVideos(
             artistId,
+            null,
             sortBy,
             sortOrder,
             skip,

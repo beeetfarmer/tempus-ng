@@ -26,11 +26,14 @@ import com.cappielloantonio.tempo.R;
 import com.cappielloantonio.tempo.databinding.FragmentSearchBinding;
 import com.cappielloantonio.tempo.helper.recyclerview.CustomLinearSnapHelper;
 import com.cappielloantonio.tempo.interfaces.ClickCallback;
+import com.cappielloantonio.tempo.popinn.PopinnVideo;
 import com.cappielloantonio.tempo.service.MediaManager;
 import com.cappielloantonio.tempo.service.MediaService;
 import com.cappielloantonio.tempo.ui.activity.MainActivity;
+import com.cappielloantonio.tempo.ui.activity.MusicVideoPlayerActivity;
 import com.cappielloantonio.tempo.ui.adapter.AlbumAdapter;
 import com.cappielloantonio.tempo.ui.adapter.ArtistAdapter;
+import com.cappielloantonio.tempo.ui.adapter.MusicVideoHorizontalAdapter;
 import com.cappielloantonio.tempo.ui.adapter.SongHorizontalAdapter;
 import com.cappielloantonio.tempo.util.Constants;
 import com.cappielloantonio.tempo.viewmodel.PlaybackViewModel;
@@ -38,6 +41,7 @@ import com.cappielloantonio.tempo.viewmodel.SearchViewModel;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.Collections;
+import java.util.List;
 
 @UnstableApi
 public class SearchFragment extends Fragment implements ClickCallback {
@@ -51,6 +55,7 @@ public class SearchFragment extends Fragment implements ClickCallback {
     private ArtistAdapter artistAdapter;
     private AlbumAdapter albumAdapter;
     private SongHorizontalAdapter songHorizontalAdapter;
+    private MusicVideoHorizontalAdapter musicVideoAdapter;
 
     private ListenableFuture<MediaBrowser> mediaBrowserListenableFuture;
     private final Handler suggestionHandler = new Handler(Looper.getMainLooper());
@@ -131,6 +136,13 @@ public class SearchFragment extends Fragment implements ClickCallback {
         reapplyPlayback();
 
         bind.searchResultTracksRecyclerView.setAdapter(songHorizontalAdapter);
+
+        // Music videos
+        bind.searchResultMusicVideosRecyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        bind.searchResultMusicVideosRecyclerView.setHasFixedSize(false);
+
+        musicVideoAdapter = new MusicVideoHorizontalAdapter(this);
+        bind.searchResultMusicVideosRecyclerView.setAdapter(musicVideoAdapter);
     }
 
     private void initSearchView() {
@@ -260,6 +272,15 @@ public class SearchFragment extends Fragment implements ClickCallback {
             }
         });
 
+        // A separate trip: music videos live on the Popinn server, not Subsonic.
+        searchViewModel.searchMusicVideos(query).observe(getViewLifecycleOwner(), result -> {
+            if (bind == null) return;
+
+            List<PopinnVideo> videos = result != null ? result.getVideos() : null;
+            bind.searchMusicVideoSector.setVisibility(videos != null && !videos.isEmpty() ? View.VISIBLE : View.GONE);
+            musicVideoAdapter.setItems(videos != null ? videos : Collections.emptyList());
+        });
+
         bind.searchResultLayout.setVisibility(View.VISIBLE);
     }
 
@@ -289,6 +310,11 @@ public class SearchFragment extends Fragment implements ClickCallback {
     @Override
     public void onMediaLongClick(Bundle bundle) {
         Navigation.findNavController(requireView()).navigate(R.id.songBottomSheetDialog, bundle);
+    }
+
+    @Override
+    public void onMusicVideoClick(Bundle bundle) {
+        MusicVideoPlayerActivity.start(requireContext(), bundle.getParcelable(Constants.MUSIC_VIDEO_OBJECT));
     }
 
     @Override

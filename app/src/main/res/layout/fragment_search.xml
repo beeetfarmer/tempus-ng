@@ -109,6 +109,35 @@
                     android:paddingTop="8dp"
                     android:paddingBottom="8dp" />
             </LinearLayout>
+
+            <!--  Music videos  -->
+            <LinearLayout
+                android:id="@+id/search_music_video_sector"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="8dp"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/TitleLarge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="16dp"
+                    android:paddingTop="20dp"
+                    android:paddingEnd="16dp"
+                    android:text="@string/search_title_music_video" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/search_result_music_videos_recycler_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:clipToPadding="false"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp" />
+            </LinearLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
